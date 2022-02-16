@@ -109,14 +109,27 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
       around(EmbeddedQuery.prototype, {
         onload(old: any) {
           return function (...args: any[]) {
-            let defaultHeaderEl = this.containerEl.parentElement.querySelector(".internal-query-header") as HTMLElement;
-            let matches = this.query.match(/^((?:collapsed|context|hideTitle|hideResults|sort|title):.+?)$/gm);
-            let settings = parseYaml(matches.join("\n"));
-            this.query = this.query
-              .replace(/^((?:collapsed|context|hideTitle|hideResults|sort|title):.+?)$/gm, "")
-              .trim();
-            defaultHeaderEl.setText(settings.title || this.query);
-            this.dom.settings = settings;
+            try {
+              let defaultHeaderEl = this.containerEl.parentElement.querySelector(
+                ".internal-query-header"
+              ) as HTMLElement;
+              let matches = this.query.matchAll(
+                /^(?<key>collapsed|context|hideTitle|hideResults|sort|title):\s*(?<value>.+?)$/gm
+              );
+              let settings: Record<string, string> = {};
+              for (let match of matches) {
+                let value = match.groups.value.toLowerCase();
+                if (value === "true" || value === "false") {
+                  match.groups.value = value === "true";
+                }
+                settings[match.groups.key] = match.groups.value;
+              }
+              this.query = this.query
+                .replace(/^((collapsed|context|hideTitle|hideResults|sort|title):.+?)$/gm, "")
+                .trim();
+              defaultHeaderEl.setText(settings.title || this.query);
+              this.dom.settings = settings;
+            } catch {}
             const result = old.call(this, ...args);
             return result;
           };
@@ -191,7 +204,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                       return this.sortOrder;
                     }
                   );
-                  this.showTitleButtonEl = headerDom.addNavButton("heading-glyph", "Hide title", () => {
+                  this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", () => {
                     return this.setTitleDisplay(!this.showTitle);
                   });
                   this.showResultsButtonEl = headerDom.addNavButton("lines-of-text", "Hide results", () => {
