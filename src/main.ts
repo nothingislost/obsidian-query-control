@@ -1,9 +1,11 @@
-import { Component, Plugin, ViewCreator, WorkspaceLeaf } from "obsidian";
 import { around } from "monkey-around";
+import { Component, Modal, Plugin, ViewCreator, WorkspaceLeaf } from "obsidian";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab } from "./settings";
+import { translate } from "./utils";
 
 export default class EmbeddedQueryControlPlugin extends Plugin {
   SearchHeaderDom: any;
+  SearchResultsExport: any;
   settings: EmbeddedQueryControlSettings;
   settingsTab: SettingTab;
 
@@ -29,8 +31,20 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         // @ts-ignore we need a leaf before any leafs exists in the workspace, so we create one from scratch
         let leaf = new WorkspaceLeaf(plugin.app);
         let searchView = viewCreator(leaf);
+        let uninstall = around(Modal.prototype, {
+          open(old: any) {
+            return function (...args: any[]) {
+              plugin.SearchResultsExport = this.constructor;
+              return;
+            };
+          },
+        });
+        searchView.onCopyResultsClick(new MouseEvent(null));
+        uninstall();
         plugin.SearchHeaderDom = searchView.headerDom.constructor;
       });
+    } else {
+      this.getSearchExport();
     }
     this.register(
       (uninstall = around(Component.prototype, {
@@ -68,8 +82,23 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   }
 
   getSearchHeader() {
-    let searchHeader: any | undefined = this.app.workspace.getLeavesOfType("search")?.first()?.view?.headerDom;
+    let searchHeader: any = this.app.workspace.getLeavesOfType("search")?.first()?.view?.headerDom;
     return searchHeader?.constructor;
+  }
+
+  getSearchExport() {
+    const plugin = this;
+    let searchView: any = this.app.workspace.getLeavesOfType("search")?.first()?.view;
+    let uninstall = around(Modal.prototype, {
+      open(old: any) {
+        return function (...args: any[]) {
+          plugin.SearchResultsExport = this.constructor;
+          return;
+        };
+      },
+    });
+    searchView?.onCopyResultsClick(new MouseEvent(null));
+    uninstall();
   }
 
   onunload(): void {}
@@ -82,39 +111,85 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
           return function (...args: any[]) {
             try {
               if (!this.patched) {
-                if (!this.el?.parentElement?.parentElement?.hasClass("cm-preview-code-block")) return;
-                this.patched = true;
-                this.setCollapseAll = function (value: boolean) {
-                  this.collapseAll = value;
-                  this.children.forEach(child => {
-                    child.setCollapse(value, false);
+                if (this.el?.closest(".internal-query")) {
+                  let defaultHeaderEl = this.el.parentElement.querySelector(".internal-query-header");
+                  this.patched = true;
+                  this.setExtraContext = function (value: boolean) {
+                    this.extraContext = value;
+                    this.extraContextButtonEl.toggleClass("is-active", value);
+                    this.children.forEach(child => {
+                      child.setExtraContext(value);
+                    });
+                    this.infinityScroll.invalidateAll();
+                  };
+                  this.setTitleDisplay = function (value: boolean) {
+                    this.showTitle = value;
+                    this.showTitleButtonEl.toggleClass("is-active", value);
+                    defaultHeaderEl.toggleClass("is-hidden", value);
+                  };
+                  this.setResultsDisplay = function (value: boolean) {
+                    this.showResults = value;
+                    this.showResultsButtonEl.toggleClass("is-active", value);
+                    this.el.toggleClass("is-hidden", value);
+                  };
+                  this.setCollapseAll = function (value: boolean) {
+                    this.collapseAllButtonEl.toggleClass("is-active", value);
+                    this.collapseAll = value;
+                    this.children.forEach(child => {
+                      child.setCollapse(value, false);
+                    });
+                    this.infinityScroll.invalidateAll();
+                  };
+                  this.setSortOrder = (sortType: string) => {
+                    this.sortOrder = sortType;
+                    this.changed();
+                  };
+                  this.onCopyResultsClick = event => {
+                    event.preventDefault();
+                    new plugin.SearchResultsExport(this.app, this).open();
+                  };
+                  let SearchHeaderDOM = plugin.SearchHeaderDom ? plugin.SearchHeaderDom : plugin.getSearchHeader();
+                  let headerDom = (this.headerDom = new SearchHeaderDOM(this.app, this.el.parentElement));
+                  defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
+                  this.collapseAllButtonEl = headerDom.addNavButton(
+                    "bullet-list",
+                    translate("plugins.search.label-collapse-results"),
+                    () => {
+                      return this.setCollapseAll(!this.collapseAll);
+                    }
+                  );
+                  this.extraContextButtonEl = headerDom.addNavButton(
+                    "expand-vertically",
+                    translate("plugins.search.label-more-context"),
+                    () => {
+                      return this.setExtraContext(!this.extraContext);
+                    }
+                  );
+                  headerDom.addSortButton(
+                    (sortType: string) => {
+                      return this.setSortOrder(sortType);
+                    },
+                    () => {
+                      return this.sortOrder;
+                    }
+                  );
+                  this.showTitleButtonEl = headerDom.addNavButton("heading-glyph", "Hide Query Title", () => {
+                    return this.setTitleDisplay(!this.showTitle);
                   });
-                  this.infinityScroll.invalidateAll();
-                };
-                this.setSortOrder = (sortType: string) => {
-                  this.sortOrder = sortType;
-                  this.changed();
-                };
-                let SearchHeaderDOM = plugin.SearchHeaderDom ? plugin.SearchHeaderDom : plugin.getSearchHeader();
-                let headerDom = (this.headerDom = new SearchHeaderDOM(this.app, this.el.parentElement));
-                this.el.parentElement.prepend(headerDom.navHeaderEl);
-                this.collapseAllButtonEl = headerDom.addNavButton("bullet-list", "Collapse results", () => {
-                  return this.setCollapseAll(!this.collapseAll);
-                });
-                this.extraContextButtonEl = headerDom.addNavButton("expand-vertically", "Show more context", () => {
-                  return this.setExtraContext(!this.extraContext);
-                });
-                headerDom.addSortButton(
-                  (sortType: string) => {
-                    return this.setSortOrder(sortType);
-                  },
-                  () => {
-                    return this.sortOrder;
-                  }
-                );
-                this.extraContext = plugin.settings.defaultShowContext;
-                this.sortOrder = plugin.settings.defaultSortOrder;
-                this.collapseAll = plugin.settings.defaultCollapse;
+                  this.showResultsButtonEl = headerDom.addNavButton("lines-of-text", "Hide Query Results", () => {
+                    return this.setResultsDisplay(!this.showResults);
+                  });
+                  headerDom.addNavButton(
+                    "documents",
+                    translate("plugins.search.label-copy-search-results"),
+                    this.onCopyResultsClick.bind(this)
+                  );
+                  this.setExtraContext(plugin.settings.defaultShowContext);
+                  this.sortOrder = plugin.settings.defaultSortOrder;
+                  this.setCollapseAll(plugin.settings.defaultCollapse);
+                  this.setTitleDisplay(plugin.settings.defaultHideResults);
+                  this.setResultsDisplay(plugin.settings.defaultHideResults);
+                }
               }
             } catch (err) {
               console.log(err);

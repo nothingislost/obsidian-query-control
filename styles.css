@@ -1,8 +1,12 @@
-.mod-root .workspace-leaf-content[data-type="markdown"] .cm-preview-code-block .nav-header {
-  margin-top: 0;
+.workspace-leaf-content[data-type="markdown"] .internal-query .nav-header {
+  margin-top: 0; /* works around issues with minimal theme */
 }
 
-.mod-root .workspace-leaf-content[data-type="markdown"] .cm-preview-code-block .nav-header .nav-buttons-container {
-  left: 0;
-  position: absolute;
+.workspace-leaf-content[data-type="markdown"] .internal-query .nav-header .nav-buttons-container {
+  position: unset; /* works around issues with minimal theme */
+  justify-content: center; /* works around issues with minimal theme */
+}
+
+.workspace-leaf-content[data-type="markdown"] .internal-query .is-hidden {
+  display: none;
 }

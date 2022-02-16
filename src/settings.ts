@@ -1,15 +1,20 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import EmbeddedQueryControlPlugin from "./main";
+import { translate } from "./utils";
 
 export interface EmbeddedQueryControlSettings {
   defaultCollapse: boolean;
   defaultShowContext: boolean;
+  defaultHideTitle: boolean;
+  defaultHideResults: boolean;
   defaultSortOrder: string;
 }
 
 export const DEFAULT_SETTINGS: EmbeddedQueryControlSettings = {
   defaultCollapse: false,
   defaultShowContext: false,
+  defaultHideTitle: false,
+  defaultHideResults: false,
   defaultSortOrder: "alphabetical",
 };
 
@@ -42,14 +47,28 @@ export class SettingTab extends PluginSettingTab {
       })
     );
 
+    new Setting(containerEl).setName("Hide query title by default").addToggle(toggle =>
+      toggle.setValue(this.plugin.settings.defaultHideTitle).onChange(value => {
+        this.plugin.settings.defaultHideTitle = value;
+        this.plugin.saveSettings();
+      })
+    );
+
+    new Setting(containerEl).setName("Hide query results by default").addToggle(toggle =>
+      toggle.setValue(this.plugin.settings.defaultHideResults).onChange(value => {
+        this.plugin.settings.defaultHideResults = value;
+        this.plugin.saveSettings();
+      })
+    );
+
     new Setting(containerEl).setName("Default query result sort order").addDropdown(cb => {
       cb.addOptions({
-        alphabetical: Translate("plugins.file-explorer.label-sort-a-to-z"),
-        alphabeticalReverse: Translate("plugins.file-explorer.label-sort-z-to-a"),
-        byModifiedTime: Translate("plugins.file-explorer.label-sort-new-to-old"),
-        byModifiedTimeReverse: Translate("plugins.file-explorer.label-sort-old-to-new"),
-        byCreatedTime: Translate("plugins.file-explorer.label-sort-created-new-to-old"),
-        byCreatedTimeReverse: Translate("plugins.file-explorer.label-sort-created-old-to-new"),
+        alphabetical: translate("plugins.file-explorer.label-sort-a-to-z"),
+        alphabeticalReverse: translate("plugins.file-explorer.label-sort-z-to-a"),
+        byModifiedTime: translate("plugins.file-explorer.label-sort-new-to-old"),
+        byModifiedTimeReverse: translate("plugins.file-explorer.label-sort-old-to-new"),
+        byCreatedTime: translate("plugins.file-explorer.label-sort-created-new-to-old"),
+        byCreatedTimeReverse: translate("plugins.file-explorer.label-sort-created-old-to-new"),
       });
       cb.setValue(this.plugin.settings.defaultSortOrder);
       cb.onChange(async value => {
@@ -59,5 +78,3 @@ export class SettingTab extends PluginSettingTab {
     });
   }
 }
-
-const Translate = i18next.t.bind(i18next);
