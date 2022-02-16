@@ -1,12 +1,16 @@
 import { Component, Plugin, ViewCreator, WorkspaceLeaf } from "obsidian";
 import { around } from "monkey-around";
+import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab } from "./settings";
 
 export default class EmbeddedQueryControlPlugin extends Plugin {
   SearchHeaderDom: any;
+  settings: EmbeddedQueryControlSettings;
+  settingsTab: SettingTab;
 
   async onload() {
-    // this.app.workspace.onLayoutReady(() => {
+    await this.loadSettings();
     let plugin = this;
+    this.registerSettingsTab();
     this.register(
       around(this.app.viewRegistry.constructor.prototype, {
         registerView(old: any) {
@@ -48,7 +52,19 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         },
       }))
     );
-    // });
+  }
+
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+
+  registerSettingsTab() {
+    this.settingsTab = new SettingTab(this.app, this);
+    this.addSettingTab(this.settingsTab);
   }
 
   getSearchHeader() {
@@ -96,7 +112,9 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     return this.sortOrder;
                   }
                 );
-                this.collapseAll = true;
+                this.extraContext = plugin.settings.defaultShowContext;
+                this.sortOrder = plugin.settings.defaultSortOrder;
+                this.collapseAll = plugin.settings.defaultCollapse;
               }
             } catch (err) {
               console.log(err);
