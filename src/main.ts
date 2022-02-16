@@ -124,6 +124,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                 }
                 settings[match.groups.key] = match.groups.value;
               }
+              console.log(settings);
               this.query = this.query
                 .replace(/^((collapsed|context|hideTitle|hideResults|sort|title):.+?)$/gm, "")
                 .trim();
@@ -229,7 +230,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   });
                   this.setExtraContext(this.settings.context);
                   this.sortOrder = this.settings.sort;
-                  this.setCollapseAll(this.settings.collapse);
+                  this.setCollapseAll(this.settings.collapsed);
                   this.setTitleDisplay(this.settings.hideTitle);
                   this.setResultsDisplay(this.settings.hideResults);
                 }
