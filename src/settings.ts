@@ -18,6 +18,15 @@ export const DEFAULT_SETTINGS: EmbeddedQueryControlSettings = {
   defaultSortOrder: "alphabetical",
 };
 
+export const sortOptions = {
+  alphabetical: translate("plugins.file-explorer.label-sort-a-to-z"),
+  alphabeticalReverse: translate("plugins.file-explorer.label-sort-z-to-a"),
+  byModifiedTime: translate("plugins.file-explorer.label-sort-new-to-old"),
+  byModifiedTimeReverse: translate("plugins.file-explorer.label-sort-old-to-new"),
+  byCreatedTime: translate("plugins.file-explorer.label-sort-created-new-to-old"),
+  byCreatedTimeReverse: translate("plugins.file-explorer.label-sort-created-old-to-new"),
+};
+
 export class SettingTab extends PluginSettingTab {
   plugin: EmbeddedQueryControlPlugin;
 
@@ -62,14 +71,7 @@ export class SettingTab extends PluginSettingTab {
     );
 
     new Setting(containerEl).setName("Default query result sort order").addDropdown(cb => {
-      cb.addOptions({
-        alphabetical: translate("plugins.file-explorer.label-sort-a-to-z"),
-        alphabeticalReverse: translate("plugins.file-explorer.label-sort-z-to-a"),
-        byModifiedTime: translate("plugins.file-explorer.label-sort-new-to-old"),
-        byModifiedTimeReverse: translate("plugins.file-explorer.label-sort-old-to-new"),
-        byCreatedTime: translate("plugins.file-explorer.label-sort-created-new-to-old"),
-        byCreatedTimeReverse: translate("plugins.file-explorer.label-sort-created-old-to-new"),
-      });
+      cb.addOptions(sortOptions);
       cb.setValue(this.plugin.settings.defaultSortOrder);
       cb.onChange(async value => {
         (this.plugin.settings.defaultSortOrder as any) = value;

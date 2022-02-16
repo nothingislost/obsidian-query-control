@@ -1,6 +1,6 @@
 import { around } from "monkey-around";
-import { Component, Modal, Plugin, ViewCreator, WorkspaceLeaf } from "obsidian";
-import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab } from "./settings";
+import { Component, Modal, parseYaml, Plugin, ViewCreator, WorkspaceLeaf } from "obsidian";
+import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
 import { translate } from "./utils";
 
 export default class EmbeddedQueryControlPlugin extends Plugin {
@@ -106,6 +106,24 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   patchSearchView(EmbeddedQuery: any, EmbeddedQueryDOM: any) {
     const plugin = this;
     this.register(
+      around(EmbeddedQuery.prototype, {
+        onload(old: any) {
+          return function (...args: any[]) {
+            let defaultHeaderEl = this.containerEl.parentElement.querySelector(".internal-query-header") as HTMLElement;
+            let matches = this.query.match(/^((?:collapsed|context|hideTitle|hideResults|sort|title):.+?)$/gm);
+            let settings = parseYaml(matches.join("\n"));
+            this.query = this.query
+              .replace(/^((?:collapsed|context|hideTitle|hideResults|sort|title):.+?)$/gm, "")
+              .trim();
+            defaultHeaderEl.setText(settings.title || this.query);
+            this.dom.settings = settings;
+            const result = old.call(this, ...args);
+            return result;
+          };
+        },
+      })
+    );
+    this.register(
       around(EmbeddedQueryDOM.prototype, {
         startLoader(old: any) {
           return function (...args: any[]) {
@@ -173,22 +191,34 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                       return this.sortOrder;
                     }
                   );
-                  this.showTitleButtonEl = headerDom.addNavButton("heading-glyph", "Hide Query Title", () => {
+                  this.showTitleButtonEl = headerDom.addNavButton("heading-glyph", "Hide title", () => {
                     return this.setTitleDisplay(!this.showTitle);
                   });
-                  this.showResultsButtonEl = headerDom.addNavButton("lines-of-text", "Hide Query Results", () => {
+                  this.showResultsButtonEl = headerDom.addNavButton("lines-of-text", "Hide results", () => {
                     return this.setResultsDisplay(!this.showResults);
                   });
-                  headerDom.addNavButton(
-                    "documents",
-                    translate("plugins.search.label-copy-search-results"),
-                    this.onCopyResultsClick.bind(this)
-                  );
-                  this.setExtraContext(plugin.settings.defaultShowContext);
-                  this.sortOrder = plugin.settings.defaultSortOrder;
-                  this.setCollapseAll(plugin.settings.defaultCollapse);
-                  this.setTitleDisplay(plugin.settings.defaultHideResults);
-                  this.setResultsDisplay(plugin.settings.defaultHideResults);
+                  headerDom.addNavButton("documents", "Copy results", this.onCopyResultsClick.bind(this));
+                  let allSettings = {
+                    title: plugin.settings.defaultHideResults,
+                    collapsed: plugin.settings.defaultCollapse,
+                    context: plugin.settings.defaultShowContext,
+                    hideTitle: plugin.settings.defaultHideTitle,
+                    hideResults: plugin.settings.defaultHideResults,
+                    sort: plugin.settings.defaultSortOrder,
+                  };
+                  if (!this.settings) this.settings = {};
+                  Object.entries(allSettings).forEach(([setting, defaultValue]) => {
+                    if (!this.settings.hasOwnProperty(setting)) {
+                      this.settings[setting] = defaultValue;
+                    } else if (setting === "sort" && !sortOptions.hasOwnProperty(this.settings.sort)) {
+                      this.settings[setting] = defaultValue;
+                    }
+                  });
+                  this.setExtraContext(this.settings.context);
+                  this.sortOrder = this.settings.sort;
+                  this.setCollapseAll(this.settings.collapse);
+                  this.setTitleDisplay(this.settings.hideTitle);
+                  this.setResultsDisplay(this.settings.hideResults);
                 }
               }
             } catch (err) {
