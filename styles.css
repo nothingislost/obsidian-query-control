@@ -1,0 +1,7 @@
+.mod-root .workspace-leaf-content[data-type="markdown"] .cm-preview-code-block .nav-header {
+  margin-top: 0;
+}
+
+.mod-root .workspace-leaf-content[data-type="markdown"] .cm-preview-code-block .nav-header .nav-buttons-container {
+  left: 0;
+}
