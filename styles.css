@@ -10,3 +10,25 @@
 .workspace-leaf-content[data-type="markdown"] .internal-query .is-hidden {
   display: none;
 }
+
+.search-results-children.cm-preview-code-block .search-result-file-match {
+  white-space: normal;
+}
+
+.search-results-children.cm-preview-code-block {
+  padding: 0;
+}
+
+.search-result .markdown-preview-view {
+  padding: 0;
+}
+
+.search-result-file-match .markdown-preview-view ul {
+  margin-block-end: 0;
+  margin-block-start: 0;
+}
+
+.search-result-file-match .markdown-preview-view {
+  padding-top: 0;
+  padding-bottom: 0;
+}
