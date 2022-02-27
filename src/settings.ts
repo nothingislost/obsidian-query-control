@@ -7,6 +7,7 @@ export interface EmbeddedQueryControlSettings {
   defaultShowContext: boolean;
   defaultHideTitle: boolean;
   defaultHideResults: boolean;
+  defaultRenderMarkdown: boolean;
   defaultSortOrder: string;
 }
 
@@ -15,9 +16,10 @@ export const DEFAULT_SETTINGS: EmbeddedQueryControlSettings = {
   defaultShowContext: false,
   defaultHideTitle: false,
   defaultHideResults: false,
+  defaultRenderMarkdown: false,
   defaultSortOrder: "alphabetical",
 };
-
+// alphabetical|alphabeticalReverse|byModifiedTime|byModifiedTimeReverse|byCreatedTime|byCreatedTimeReverse
 export const sortOptions = {
   alphabetical: translate("plugins.file-explorer.label-sort-a-to-z"),
   alphabeticalReverse: translate("plugins.file-explorer.label-sort-z-to-a"),
@@ -66,6 +68,13 @@ export class SettingTab extends PluginSettingTab {
     new Setting(containerEl).setName("Hide query results by default").addToggle(toggle =>
       toggle.setValue(this.plugin.settings.defaultHideResults).onChange(value => {
         this.plugin.settings.defaultHideResults = value;
+        this.plugin.saveSettings();
+      })
+    );
+
+    new Setting(containerEl).setName("Render results as Markdown by default").addToggle(toggle =>
+      toggle.setValue(this.plugin.settings.defaultRenderMarkdown).onChange(value => {
+        this.plugin.settings.defaultRenderMarkdown = value;
         this.plugin.saveSettings();
       })
     );

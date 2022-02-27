@@ -22,11 +22,118 @@ declare module "obsidian" {
   interface WorkspaceSplit {
     children: WorkspaceTabs[];
   }
+  interface MarkdownRenderer {
+    renderer: MarkdownPreviewRenderer;
+    rerender(): void;
+  }
+  interface MarkdownPreviewRenderer {
+    previewEl: HTMLElement;
+    onResize(): void;
+    set(content: string): void;
+    unfoldAllHeadings(): void;
+    unfoldAllLists(): void;
+    rerender(): void;
+  }
+
+  class SearchResultDOM {
+    startLoader(): void;
+    infinityScroll: InfinityScroll;
+    patched: boolean;
+    children: SearchResultItem[];
+    addResult(): void;
+    removeResult(): void;
+  }
+  interface VaultSettings {
+    foldHeading: boolean;
+    foldIndent: boolean;
+    rightToLeft: boolean;
+    readableLineLength: boolean;
+    tabSize: number;
+    showFrontmatter: boolean;
+  }
+
+  interface Vault {
+    config: {};
+    getConfig<T extends keyof VaultSettings>(setting: T): VaultSettings[T];
+  }
+
+  interface InfinityScroll {
+    // on node insert calls queueCompute
+    rootEl: RootElements;
+    scrollEl: HTMLElement;
+    filtered: boolean;
+    filter: string;
+    compute(): void;
+    invalidate(item: SearchResultItemMatch, includeChildren: boolean): void; // calls queueCompute
+    invalidateAll(): void; // calls queueCompute
+    updateVirtualDisplay(scrollTop?: number): void;
+    updateShownSections(): void;
+    queueCompute(): void;
+    computeSync(): void;
+    compute(): void;
+    update(match: SearchResultItemMatch, val1: number, val2: number, val3: number, val4: number): void;
+    measure(parent: SearchResultItem, item: SearchResultItemMatch): void;
+    scrollIntoView(item: any): void;
+    getRootTop(): number;
+    findElementTop(a: any, b: any, c: any): void;
+    onScroll(): void; // this calls updateVirtualDisplay()
+  }
+  class SearchResultItem {
+    renderContentMatches(): void;
+    onResultClick(event: MouseEvent): void;
+    info: ItemInfo;
+    collapsible: boolean;
+    collpased: boolean;
+    extraContext: boolean;
+    showTitle: boolean;
+    parent: SearchResultDOM;
+    children: SearchResultItemMatch[];
+    file: TFile;
+    content: string;
+    el: HTMLElement;
+    pusherEl: HTMLElement;
+    containerEl: HTMLElement;
+    childrenEl: HTMLElement;
+  }
+  class SearchResultItemMatch {
+    render(truncateLeft: boolean, truncateRight: boolean): void;
+    start: number;
+    end: number;
+    parent: SearchResultItem;
+    matches: MatchIndices[];
+    info: ItemInfo;
+    onMatchRender?: (match: MatchIndices, el: HTMLElement) => any;
+  }
+  type MatchIndices = number[];
+  interface ItemInfo {
+    height: number;
+    width: number;
+    childTop: number;
+    computed: boolean;
+    queued: boolean;
+    hidden: boolean;
+  }
+  class SearchHeaderDOM {
+    constructor(app: App, el: HTMLElement);
+    navHeaderEl: HTMLElement;
+    addNavButton(icon: string, label: string, onClick: () => any, className?: string): HTMLElement;
+    addSortButton(onClick: (sortType: string) => any, callback: () => any): void;
+  }
+  class EmbeddedSearchClass extends MarkdownRenderChild {
+    dom?: SearchResult;
+    onunload(): void;
+    onload(): void;
+  }
   interface WorkspaceItem {
     tabsInnerEl: HTMLElement;
     view: View;
     type: string;
   }
+  interface SearchView extends View {
+    onCopyResultsClick(event: MouseEvent): void;
+    headerDom: SearchHeaderDOM;
+  }
+  // interface SearchViewHeader
   interface WorkspaceTabs {
     children: WorkspaceLeaf[];
     component: Component;
