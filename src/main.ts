@@ -158,14 +158,14 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
           return result;
         };
       },
-      removeResult(old: any) {
-        return function (...args: any[]) {
-          // uninstall();
-          const result = old.call(this, ...args);
-          // console.log("removing search result");
-          return result;
-        };
-      },
+      // removeResult(old: any) {
+      //   return function (...args: any[]) {
+      //     // uninstall();
+      //     const result = old.call(this, ...args);
+      //     // console.log("removing search result");
+      //     return result;
+      //   };
+      // },
     });
     this.register(uninstall);
     this.register(
@@ -174,8 +174,6 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
           return function (...args: any[]) {
             try {
               if (!this.patched && this.el.parentElement?.hasClass("internal-query")) {
-                // console.log("patching EmbeddedQueryDOM", this);
-
                 if (this.el?.closest(".internal-query")) {
                   let defaultHeaderEl = this.el.parentElement.querySelector(".internal-query-header");
                   this.patched = true;
@@ -217,7 +215,6 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   };
                   this.setSortOrder = (sortType: string) => {
                     this.sortOrder = sortType;
-                    console.log("sort order");
                     this.changed();
                     this.infinityScroll.invalidateAll();
                   };
@@ -307,23 +304,21 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         return function (event: MouseEvent, ...args: any[]) {
           // TODO: Allow for clicking within the search result without immediately navigating to the result
           //       Also allow for a way to navigate to the result
-          //       Right now the entire function is disabled so clicking will not navigate to the result
           //
-          // if (t.target.hasClass("internal-link") || t.target.hasClass("task-list-item-checkbox")) {
-          //   console.log("internal-link click", t);
-          //   return;
-          // } else {
-          //   console.log("click", t);
-          //   const result = old.call(this, t, ...args);
-          //   return result;
-          // }
-          // t.preventDefault();
+          if (
+            event.target instanceof HTMLElement &&
+            (event.target.hasClass("internal-link") ||
+              event.target.hasClass("task-list-item-checkbox") ||
+              event.target.hasClass("admonition-title-content"))
+          ) {
+          } else {
+            return old.call(this, event, ...args);
+          }
         };
       },
       renderContentMatches(old: any) {
         return function (...args: any[]) {
-          // console.log("calling renderContentMatches");
-          uninstall();
+          // TODO: Move this to its own around registration and uninstall on patch
           const result = old.call(this, ...args);
           if (!plugin.isSearchResultItemMatchPatched) {
             let SearchResultItemMatch = this.children.first()?.constructor;
@@ -347,21 +342,26 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
             // if we don't mangle ```query blocks, we'll end up with infinite query recursion
             // TODO: this could be a problem when we go to edit files in the checkbox logic
             //       since we'll update the document using the mangled text
-            let content = this.parent.content
-              .substring(this.start, this.end)
-              .replace("```query", "\\`\\`\\`query")
-              .trim();
-
+            let content = this.parent.content.substring(this.start, this.end).replace("```query", "\\`\\`\\`query");
+            let leadingSpaces = content.match(/^\s+/g)?.first();
+            if (leadingSpaces) {
+              content = content.replace(new RegExp(`^${leadingSpaces}`, "gm"), "");
+            }
             let parentComponent = this.parent.parent.parent;
             if (parentComponent && this.parent.parent.renderMarkdown) {
               let component = parentComponent?.renderComponent;
 
-              // this.renderMemLeakTest = new Uint8Array(1024*1024*10);
+              // this.renderMemLeakTest = new Uint8Array(1024*1024*1);
               this.el.empty();
               let renderer = new SearchMarkdownRenderer(plugin.app, this.el, this);
+              renderer.onRenderComplete = () => {
+                // TODO: See if we can improve this workaround
+                // It exists because the markdown renderer is rendering async
+                // and the measurement processes are happening before the content has been rendered
+                this.parent.parent.infinityScroll.measure(this.parent, this);
+              };
               component.addChild(renderer);
               renderer.renderer.set(content);
-              this.parent.parent.infinityScroll.invalidate(this, true);
             } else {
               return old.call(this, ...args);
             }

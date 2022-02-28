@@ -33,6 +33,7 @@ declare module "obsidian" {
     unfoldAllHeadings(): void;
     unfoldAllLists(): void;
     rerender(): void;
+    text: string;
   }
 
   class SearchResultDOM {
@@ -70,7 +71,6 @@ declare module "obsidian" {
     updateShownSections(): void;
     queueCompute(): void;
     computeSync(): void;
-    compute(): void;
     update(match: SearchResultItemMatch, val1: number, val2: number, val3: number, val4: number): void;
     measure(parent: SearchResultItem, item: SearchResultItemMatch): void;
     scrollIntoView(item: any): void;
