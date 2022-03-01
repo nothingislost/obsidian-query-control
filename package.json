@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-embedded-query-control",
+  "name": "obsidian-query-control",
   "version": "0.0.1",
-  "description": "An experimental Obsidian plugin that adds controls to embedded queries",
+  "description": "An experimental Obsidian plugin that adds additional control to queries",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",

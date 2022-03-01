@@ -54,34 +54,6 @@ export class SearchMarkdownRenderer extends MarkdownRenderer {
     return this.match.parent.file;
   }
 
-  // onCheckboxClick(event: PointerEvent, e: any, relativeLineNo: number) {
-  //   console.log("onCheckboxClick", event, e, relativeLineNo, this);
-  //   event.preventDefault();
-
-  //   for (var i = this.renderer.text, r = 0, o = 0; r < relativeLineNo; ) {
-  //     if (-1 === (o = i.indexOf("\n", o) + 1)) {
-  //       return;
-  //     }
-
-  //     r++;
-  //   }
-
-  //   var s = i.indexOf("\n", o);
-
-  //   if (-1 === s) {
-  //     s = i.length;
-  //   }
-
-  //   var a = i.slice(o, s).search(/\[.\]/);
-
-  //   if (-1 !== a) {
-  //     var l = o + a + 1;
-  //     var c = " " === i.charAt(l) ? "x" : " ";
-  //     var u = i.slice(0, l) + c + i.slice(l + 1);
-  //     this.edit(u);
-  //   }
-  // }
-
   async edit(content: string) {
     this.renderer.set(content);
     let cachedContent = await this.app.vault.cachedRead(this.file);

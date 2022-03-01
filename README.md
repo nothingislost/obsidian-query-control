@@ -1,6 +1,6 @@
-## Obsidian Embedded Query Control
+## Obsidian Query Control
 
-This plugin adds additional functionality to Obsidian's [embedded query](https://help.obsidian.md/Plugins/Search#Embed+search+results) feature. The current version will add a control bar to each embedded query with various actions such as: collapse all, show context, sort, hide title, hide results, and copy results.
+This plugin adds additional functionality to Obsidian's [search/query](https://help.obsidian.md/Plugins/Search) feature. The current version will add a control bar to each embedded query with various actions such as: collapse all, show context, sort, hide title, hide results, render markdown, and copy results.
 
 Controls are added to embedded queries in Live Preview and Reading modes.
 
@@ -16,6 +16,7 @@ collapsed: true | false
 context: true | false
 hideTitle: true | false
 hideResults: true | false
+renderMarkdown: true | false
 sort: alphabetical | alphabeticalReverse | byModifiedTime | byModifiedTimeReverse | byCreatedTime | byCreatedTimeReverse
 ```
 ````

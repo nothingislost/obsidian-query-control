@@ -1,14 +1,15 @@
 import { around } from "monkey-around";
 import {
   Component,
-  EmbeddedSearchClass, Modal,
+  EmbeddedSearchClass,
+  Modal,
   Plugin,
   SearchHeaderDOM,
   SearchResultDOM,
   SearchResultItem,
   SearchView,
   ViewCreator,
-  WorkspaceLeaf
+  WorkspaceLeaf,
 } from "obsidian";
 import { SearchMarkdownRenderer } from "./search-renderer";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
@@ -66,6 +67,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         // @ts-ignore we need a leaf before any leafs exists in the workspace, so we create one from scratch
         let leaf = new WorkspaceLeaf(plugin.app);
         let searchView = viewCreator(leaf) as SearchView;
+        plugin.patchNativeSearch(searchView);
         let uninstall = around(Modal.prototype, {
           open(old: any) {
             return function (...args: any[]) {
@@ -145,7 +147,71 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
 
   onunload(): void {}
 
-  patchAddResult(SearchResult: typeof SearchResultDOM) {
+  patchNativeSearch(searchView: SearchView) {
+    const plugin = this;
+    this.register(
+      around(searchView.constructor.prototype, {
+        stopSearch(old: any) {
+          return function (...args: any[]) {
+            const result = old.call(this, ...args);
+            if (this.renderComponent) {
+              this.renderComponent.unload();
+              this.renderComponent = new Component();
+            }
+            return result;
+          };
+        },
+        addChild(old: any) {
+          return function (...args: any[]) {
+            try {
+              if (!this.patched) {
+                if (!this.renderComponent) {
+                  this.renderComponent = new Component();
+                  this.renderComponent.load();
+                }
+                this.patched = true;
+                this.dom.parent = this;
+                plugin.patchSearchResultDOM(this.dom.constructor);
+                this.setRenderMarkdown = function (value: boolean) {
+                  this.dom.renderMarkdown = value;
+                  this.dom.children.forEach((child: any) => {
+                    child.renderContentMatches();
+                  });
+                  this.dom.infinityScroll.invalidateAll();
+                  this.dom.childrenEl.toggleClass("cm-preview-code-block", value);
+                  this.dom.childrenEl.toggleClass("is-rendered", value);
+                  this.renderMarkdownButtonEl.toggleClass("is-active", value);
+                };
+                this.renderMarkdownButtonEl = this.headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
+                  return this.setRenderMarkdown(!this.dom.renderMarkdown);
+                });
+
+                let allSettings = {
+                  renderMarkdown: plugin.settings.defaultRenderMarkdown,
+                };
+                if (!this.settings) this.settings = {};
+                Object.entries(allSettings).forEach(([setting, defaultValue]) => {
+                  if (!this.settings.hasOwnProperty(setting)) {
+                    this.settings[setting] = defaultValue;
+                  } else if (setting === "sort" && !sortOptions.hasOwnProperty(this.settings.sort)) {
+                    this.settings[setting] = defaultValue;
+                  }
+                });
+                this.setRenderMarkdown(this.settings.renderMarkdown);
+              } else {
+              }
+            } catch (err) {
+              console.log(err);
+            }
+            const result = old.call(this, ...args);
+            return result;
+          };
+        },
+      })
+    );
+  }
+
+  patchSearchResultDOM(SearchResult: typeof SearchResultDOM) {
     const plugin = this;
     let uninstall = around(SearchResult.prototype, {
       addResult(old: any) {
@@ -157,14 +223,6 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
           return result;
         };
       },
-      // removeResult(old: any) {
-      //   return function (...args: any[]) {
-      //     // uninstall();
-      //     const result = old.call(this, ...args);
-      //     // console.log("removing search result");
-      //     return result;
-      //   };
-      // },
     });
     this.register(uninstall);
     this.register(
@@ -174,8 +232,8 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
             try {
               if (!this.patched && this.el.parentElement?.hasClass("internal-query")) {
                 if (this.el?.closest(".internal-query")) {
-                  let defaultHeaderEl = this.el.parentElement.querySelector(".internal-query-header");
                   this.patched = true;
+                  let defaultHeaderEl = this.el.parentElement.querySelector(".internal-query-header");
                   this.setExtraContext = function (value: boolean) {
                     this.extraContext = value;
                     this.extraContextButtonEl.toggleClass("is-active", value);
@@ -199,9 +257,9 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     this.children.forEach((child: any) => {
                       child.renderContentMatches();
                     });
-                    // this.infinityScroll.invalidateAll();
-                    // this.changed();
+                    this.infinityScroll.invalidateAll();
                     this.childrenEl.toggleClass("cm-preview-code-block", value);
+                    this.childrenEl.toggleClass("is-rendered", value);
                     this.renderMarkdownButtonEl.toggleClass("is-active", value);
                   };
                   this.setCollapseAll = function (value: boolean) {
@@ -221,9 +279,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     event.preventDefault();
                     new plugin.SearchResultsExport(this.app, this).open();
                   };
-                  let _SearchHeaderDOM: typeof SearchHeaderDOM = plugin.SearchHeaderDOM
-                    ? plugin.SearchHeaderDOM
-                    : plugin.getSearchHeader();
+                  let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
                   let headerDom = (this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement));
                   defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
                   this.collapseAllButtonEl = headerDom.addNavButton(
@@ -251,7 +307,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", () => {
                     return this.setTitleDisplay(!this.showTitle);
                   });
-                  this.showResultsButtonEl = headerDom.addNavButton("lines-of-text", "Hide results", () => {
+                  this.showResultsButtonEl = headerDom.addNavButton("minus-with-circle", "Hide results", () => {
                     return this.setResultsDisplay(!this.showResults);
                   });
                   this.renderMarkdownButtonEl = headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
@@ -301,31 +357,9 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
     let uninstall = around(SearchResultItemClass.prototype, {
       onResultClick(old: any) {
         return function (event: MouseEvent, e: any, ...args: any[]) {
-          let eState = {
-            match: {
-              content: this.content,
-              matches: e || this.result.content || [],
-            },
-          };
-          let state = {
-            active: true,
-            state: { file: this.file.path },
-            type: "markdown",
-          };
-          // this.app.workspace.getLeaf(Keymap.isModEvent(event)).openFile(this.file, state);
-          // let o = {
-          //   type: i = this.view.getViewType(),
-          //   state: e.state || {file: this.file.path},
-          //   active: e.active,
-          //   group: e.group
-          // }
-          // this.setViewState(state, eState)
-          // this.setViewState(state, e.eState)
-
-          // TODO: Allow for clicking within the search result without immediately navigating to the result
-          //       Also allow for a way to navigate to the result
-          //
           if (
+            // TODO: Improve this exclusion list which allows for clicking 
+            //       on elements without navigating to the match result
             event.target instanceof HTMLElement &&
             (event.target.hasClass("internal-link") ||
               event.target.hasClass("task-list-item-checkbox") ||
@@ -359,7 +393,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
       around(SearchResultItemMatch.prototype, {
         render(old: any) {
           return function (...args: any[]) {
-            // if we don't mangle ```query blocks, we'll end up with infinite query recursion
+            // NOTE: if we don't mangle ```query blocks, we could end up with infinite query recursion
             let content = this.parent.content.substring(this.start, this.end).replace("```query", "\\`\\`\\`query");
             let leadingSpaces = content.match(/^\s+/g)?.first();
             if (leadingSpaces) {
@@ -368,13 +402,10 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
             let parentComponent = this.parent.parent.parent;
             if (parentComponent && this.parent.parent.renderMarkdown) {
               let component = parentComponent?.renderComponent;
-
-              // this.renderMemLeakTest = new Uint8Array(1024*1024*1);
               this.el.empty();
               let renderer = new SearchMarkdownRenderer(plugin.app, this.el, this);
-              // console.log("highlightEl", renderer.renderer);
               renderer.onRenderComplete = () => {
-                // TODO: See if we can improve this workaround
+                // TODO: See if we can improve measurement
                 // It exists because the markdown renderer is rendering async
                 // and the measurement processes are happening before the content has been rendered
                 this.parent.parent.infinityScroll.measure(this.parent, this);
@@ -447,6 +478,6 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
       })
     );
 
-    this.patchAddResult(SearchResult);
+    this.patchSearchResultDOM(SearchResult);
   }
 }
