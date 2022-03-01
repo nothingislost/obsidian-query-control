@@ -1,15 +1,14 @@
 import { around } from "monkey-around";
 import {
   Component,
-  EmbeddedSearchClass,
-  Modal,
+  EmbeddedSearchClass, Modal,
   Plugin,
   SearchHeaderDOM,
   SearchResultDOM,
   SearchResultItem,
   SearchView,
   ViewCreator,
-  WorkspaceLeaf,
+  WorkspaceLeaf
 } from "obsidian";
 import { SearchMarkdownRenderer } from "./search-renderer";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
@@ -301,7 +300,28 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
     const plugin = this;
     let uninstall = around(SearchResultItemClass.prototype, {
       onResultClick(old: any) {
-        return function (event: MouseEvent, ...args: any[]) {
+        return function (event: MouseEvent, e: any, ...args: any[]) {
+          let eState = {
+            match: {
+              content: this.content,
+              matches: e || this.result.content || [],
+            },
+          };
+          let state = {
+            active: true,
+            state: { file: this.file.path },
+            type: "markdown",
+          };
+          // this.app.workspace.getLeaf(Keymap.isModEvent(event)).openFile(this.file, state);
+          // let o = {
+          //   type: i = this.view.getViewType(),
+          //   state: e.state || {file: this.file.path},
+          //   active: e.active,
+          //   group: e.group
+          // }
+          // this.setViewState(state, eState)
+          // this.setViewState(state, e.eState)
+
           // TODO: Allow for clicking within the search result without immediately navigating to the result
           //       Also allow for a way to navigate to the result
           //
@@ -312,7 +332,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
               event.target.hasClass("admonition-title-content"))
           ) {
           } else {
-            return old.call(this, event, ...args);
+            return old.call(this, event, e, ...args);
           }
         };
       },
@@ -340,8 +360,6 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         render(old: any) {
           return function (...args: any[]) {
             // if we don't mangle ```query blocks, we'll end up with infinite query recursion
-            // TODO: this could be a problem when we go to edit files in the checkbox logic
-            //       since we'll update the document using the mangled text
             let content = this.parent.content.substring(this.start, this.end).replace("```query", "\\`\\`\\`query");
             let leadingSpaces = content.match(/^\s+/g)?.first();
             if (leadingSpaces) {
@@ -354,6 +372,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
               // this.renderMemLeakTest = new Uint8Array(1024*1024*1);
               this.el.empty();
               let renderer = new SearchMarkdownRenderer(plugin.app, this.el, this);
+              // console.log("highlightEl", renderer.renderer);
               renderer.onRenderComplete = () => {
                 // TODO: See if we can improve this workaround
                 // It exists because the markdown renderer is rendering async

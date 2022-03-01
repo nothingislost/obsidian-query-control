@@ -1,5 +1,4 @@
-import { App, MarkdownRenderer, resolveSubpath, TFile } from "obsidian";
-// import { combineContent } from "./utils";
+import { App, MarkdownRenderer, TFile } from "obsidian";
 
 export class SearchMarkdownRenderer extends MarkdownRenderer {
   app: App;
@@ -24,7 +23,6 @@ export class SearchMarkdownRenderer extends MarkdownRenderer {
       this.updateOptions();
       return this.renderer.onResize();
     });
-    // this.loadFile();
   }
 
   updateOptions() {
@@ -84,29 +82,17 @@ export class SearchMarkdownRenderer extends MarkdownRenderer {
   //   }
   // }
 
-  edit(content: string) {
+  async edit(content: string) {
     this.renderer.set(content);
-    let parentContent = this.match.parent.content;
-    let matchContent = parentContent.slice(this.match.start, this.match.end);
+    let cachedContent = await this.app.vault.cachedRead(this.file);
+    let matchContent = cachedContent.slice(this.match.start, this.match.end);
     let leadingSpaces = matchContent.match(/^\s+/g)?.first();
     if (leadingSpaces) {
       content = content.replace(/^/gm, leadingSpaces);
     }
-    let before = parentContent.slice(0, this.match.start);
-    let after = parentContent.slice(this.match.end, this.match.parent.content.length);
-    // TODO: Fix the fact that content has leading spaces trimmed off
+    let before = cachedContent.slice(0, this.match.start);
+    let after = cachedContent.slice(this.match.end, this.match.parent.content.length);
     var combinedContent = before + content + after;
     this.app.vault.modify(this.file, combinedContent);
   }
-
-  // async loadFile() {
-  //   let fileCache = this.app.metadataCache.getFileCache(this.file);
-  //   let resolvedSubPath = resolveSubpath(fileCache, this.subpath);
-  //   let content = await this.app.vault.cachedRead(this.file);
-  //   let parsed = combineContent(content, fileCache, resolvedSubPath);
-  //   this.before = parsed.before;
-  //   this.after = parsed.after;
-  //   this.indent = parsed.indent;
-  //   this.renderer.set(content);
-  // }
 }

@@ -80,7 +80,7 @@ declare module "obsidian" {
   }
   class SearchResultItem {
     renderContentMatches(): void;
-    onResultClick(event: MouseEvent): void;
+    onResultClick(event: MouseEvent, e?: any): void;
     info: ItemInfo;
     collapsible: boolean;
     collpased: boolean;
