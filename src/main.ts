@@ -151,6 +151,28 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
     const plugin = this;
     this.register(
       around(searchView.constructor.prototype, {
+        onResize(old: any) {
+          return function (...args: any[]) {
+            // this works around measurement issues when the search el width
+            // goes to zero and then back to a non zero value
+            if (this.dom.el.clientWidth === 0) {
+              this.dom.children.forEach((child: any) => {
+                child.setCollapse(true, false);
+              });
+              this.dom.hidden = true;
+            }
+            else if (this.dom.hidden) {
+              this.dom.hidden = false;
+              // if we toggle too quickly, measurement happens before we want it to
+              setTimeout(() => {
+                this.dom.children.forEach((child: any) => {
+                  child.setCollapse(this.dom.collapseAll, false);
+                });
+              }, 100);
+            }
+            return old.call(this, ...args);
+          };
+        },
         stopSearch(old: any) {
           return function (...args: any[]) {
             const result = old.call(this, ...args);
@@ -358,7 +380,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
       onResultClick(old: any) {
         return function (event: MouseEvent, e: any, ...args: any[]) {
           if (
-            // TODO: Improve this exclusion list which allows for clicking 
+            // TODO: Improve this exclusion list which allows for clicking
             //       on elements without navigating to the match result
             event.target instanceof HTMLElement &&
             (event.target.hasClass("internal-link") ||
