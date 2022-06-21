@@ -10,6 +10,7 @@ import {
   SearchView,
   ViewCreator,
   WorkspaceLeaf,
+  requireApiVersion,
 } from "obsidian";
 import { SearchMarkdownRenderer } from "./search-renderer";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
@@ -36,6 +37,8 @@ import { translate } from "./utils";
 //     - SearchResultDOM
 //       - SearchResultItem
 //         - SearchResultItemMatch
+
+const isFifteenPlus = requireApiVersion && requireApiVersion("0.15.0");
 
 export default class EmbeddedQueryControlPlugin extends Plugin {
   SearchHeaderDOM: typeof SearchHeaderDOM;
@@ -155,17 +158,17 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
           return function (...args: any[]) {
             // this works around measurement issues when the search el width
             // goes to zero and then back to a non zero value
+            const _children = isFifteenPlus ? this.dom.vChildren?._children : this.dom.children;
             if (this.dom.el.clientWidth === 0) {
-              this.dom.children.forEach((child: any) => {
+              _children.forEach((child: any) => {
                 child.setCollapse(true, false);
               });
               this.dom.hidden = true;
-            }
-            else if (this.dom.hidden) {
+            } else if (this.dom.hidden) {
               this.dom.hidden = false;
               // if we toggle too quickly, measurement happens before we want it to
               setTimeout(() => {
-                this.dom.children.forEach((child: any) => {
+                _children.forEach((child: any) => {
                   child.setCollapse(this.dom.collapseAll, false);
                 });
               }, 100);
@@ -195,8 +198,9 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                 this.dom.parent = this;
                 plugin.patchSearchResultDOM(this.dom.constructor);
                 this.setRenderMarkdown = function (value: boolean) {
+                  const _children = isFifteenPlus ? this.dom.vChildren?._children : this.dom.children;
                   this.dom.renderMarkdown = value;
-                  this.dom.children.forEach((child: any) => {
+                  _children.forEach((child: any) => {
                     child.renderContentMatches();
                   });
                   this.dom.infinityScroll.invalidateAll();
@@ -257,9 +261,10 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   this.patched = true;
                   let defaultHeaderEl = this.el.parentElement.querySelector(".internal-query-header");
                   this.setExtraContext = function (value: boolean) {
+                    const _children = isFifteenPlus ? this.vChildren?._children : this.children;
                     this.extraContext = value;
                     this.extraContextButtonEl.toggleClass("is-active", value);
-                    this.children.forEach((child: any) => {
+                    _children.forEach((child: any) => {
                       child.setExtraContext(value);
                     });
                     this.infinityScroll.invalidateAll();
@@ -276,7 +281,8 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   };
                   this.setRenderMarkdown = function (value: boolean) {
                     this.renderMarkdown = value;
-                    this.children.forEach((child: any) => {
+                    const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                    _children.forEach((child: any) => {
                       child.renderContentMatches();
                     });
                     this.infinityScroll.invalidateAll();
@@ -285,9 +291,10 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     this.renderMarkdownButtonEl.toggleClass("is-active", value);
                   };
                   this.setCollapseAll = function (value: boolean) {
+                    const _children = isFifteenPlus ? this.vChildren?._children : this.children;
                     this.collapseAllButtonEl.toggleClass("is-active", value);
                     this.collapseAll = value;
-                    this.children.forEach((child: any) => {
+                    _children.forEach((child: any) => {
                       child.setCollapse(value, false);
                     });
                     this.infinityScroll.invalidateAll();
@@ -396,8 +403,9 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         return function (...args: any[]) {
           // TODO: Move this to its own around registration and uninstall on patch
           const result = old.call(this, ...args);
-          if (!plugin.isSearchResultItemMatchPatched) {
-            let SearchResultItemMatch = this.children.first()?.constructor;
+          const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+          if (!plugin.isSearchResultItemMatchPatched && _children.length) {
+            let SearchResultItemMatch = _children.first().constructor;
             plugin.patchSearchResultItemMatch(SearchResultItemMatch);
           }
           return result;
@@ -410,19 +418,19 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   patchSearchResultItemMatch(SearchResultItemMatch: any) {
     this.isSearchResultItemMatchPatched = true;
     const plugin = this;
-
     plugin.register(
       around(SearchResultItemMatch.prototype, {
         render(old: any) {
           return function (...args: any[]) {
             // NOTE: if we don't mangle ```query blocks, we could end up with infinite query recursion
-            let content = this.parent.content.substring(this.start, this.end).replace("```query", "\\`\\`\\`query");
+            let _parent = isFifteenPlus ? this.parentDom : this.parent;
+            let content = _parent.content.substring(this.start, this.end).replace("```query", "\\`\\`\\`query");
             let leadingSpaces = content.match(/^\s+/g)?.first();
             if (leadingSpaces) {
               content = content.replace(new RegExp(`^${leadingSpaces}`, "gm"), "");
             }
-            let parentComponent = this.parent.parent.parent;
-            if (parentComponent && this.parent.parent.renderMarkdown) {
+            let parentComponent = _parent.parent.parent;
+            if (parentComponent && _parent.parent.renderMarkdown) {
               let component = parentComponent?.renderComponent;
               this.el.empty();
               let renderer = new SearchMarkdownRenderer(plugin.app, this.el, this);
@@ -430,7 +438,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                 // TODO: See if we can improve measurement
                 // It exists because the markdown renderer is rendering async
                 // and the measurement processes are happening before the content has been rendered
-                this.parent.parent.infinityScroll.measure(this.parent, this);
+                _parent.parent.infinityScroll.measure(_parent, this);
               };
               component.addChild(renderer);
               renderer.renderer.set(content);

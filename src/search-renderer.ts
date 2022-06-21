@@ -1,5 +1,6 @@
-import { App, MarkdownRenderer, TFile } from "obsidian";
+import { App, MarkdownRenderer, requireApiVersion, TFile } from "obsidian";
 
+const isFifteenPlus = requireApiVersion && requireApiVersion("0.15.0");
 export class SearchMarkdownRenderer extends MarkdownRenderer {
   app: App;
   subpath: string;
@@ -17,8 +18,8 @@ export class SearchMarkdownRenderer extends MarkdownRenderer {
     this.match = match;
     this.subpath = "";
     this.indent = "";
-    this.filePath = this.match.parent.path;
-    this.file = this.match.parent.file;
+    this.filePath = isFifteenPlus ? this.match.parentDom.path : this.match.parent.path;
+    this.file = isFifteenPlus ? this.match.parentDom.file : this.match.parent.file;
     this.renderer.previewEl.onNodeInserted(() => {
       this.updateOptions();
       return this.renderer.onResize();
