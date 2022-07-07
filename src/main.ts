@@ -11,6 +11,8 @@ import {
   ViewCreator,
   WorkspaceLeaf,
   requireApiVersion,
+  BacklinksClass,
+  BacklinkDOMClass,
 } from "obsidian";
 import { SearchMarkdownRenderer } from "./search-renderer";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
@@ -40,6 +42,9 @@ import { translate } from "./utils";
 
 const isFifteenPlus = requireApiVersion && requireApiVersion("0.15.0");
 
+const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
+const backlinkDoms = new WeakMap<HTMLElement, any>();
+
 export default class EmbeddedQueryControlPlugin extends Plugin {
   SearchHeaderDOM: typeof SearchHeaderDOM;
   SearchResultsExport: any;
@@ -47,6 +52,8 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
   settingsTab: SettingTab;
   isSearchResultItemPatched: boolean;
   isSearchResultItemMatchPatched: boolean;
+  isBacklinksPatched: boolean;
+  isSearchPatched: boolean;
 
   async onload() {
     await this.loadSettings();
@@ -95,6 +102,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
           return function (child: unknown, ...args: any[]) {
             try {
               if (
+                !plugin.isSearchPatched &&
                 child instanceof Component &&
                 child.hasOwnProperty("searchQuery") &&
                 child.hasOwnProperty("sourcePath") &&
@@ -102,7 +110,15 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
               ) {
                 let EmbeddedSearch = child as EmbeddedSearchClass;
                 plugin.patchSearchView(EmbeddedSearch);
-                uninstall();
+                plugin.isSearchPatched = true;
+              }
+              if (child instanceof Component && child.hasOwnProperty("backlinkDom")) {
+                let backlinks = child as BacklinksClass;
+                backlinkDoms.set(backlinks.backlinkDom.el.closest(".backlink-pane"), child);
+                if (!plugin.isBacklinksPatched) {
+                  plugin.patchBacklinksView(backlinks);
+                  plugin.isBacklinksPatched = true;
+                }
               }
             } catch (err) {
               console.log(err);
@@ -256,6 +272,13 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         startLoader(old: any) {
           return function (...args: any[]) {
             try {
+              let containerEl = this.el.closest(".backlink-pane");
+              let backlinksInstance = backlinkDoms.get(containerEl);
+              if (containerEl && backlinksInstance) {
+                if (backlinksInstance.patched) return;
+                handleBacklinks(this, plugin, containerEl, backlinksInstance);
+                return;
+              }
               if (!this.patched && this.el.parentElement?.hasClass("internal-query")) {
                 if (this.el?.closest(".internal-query")) {
                   this.patched = true;
@@ -438,7 +461,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                 // TODO: See if we can improve measurement
                 // It exists because the markdown renderer is rendering async
                 // and the measurement processes are happening before the content has been rendered
-                _parent.parent.infinityScroll.measure(_parent, this);
+                _parent?.parent?.infinityScroll.measure(_parent, this);
               };
               component.addChild(renderer);
               renderer.renderer.set(content);
@@ -507,7 +530,112 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         },
       })
     );
-
     this.patchSearchResultDOM(SearchResult);
+  }
+
+  patchBacklinksView(backlinks: BacklinksClass) {
+    const plugin = this;
+    const Backlink = backlinks.constructor as typeof EmbeddedSearchClass;
+    const BacklinkDOM = backlinks.backlinkDom.constructor as typeof BacklinkDOMClass;
+
+    this.register(
+      around(Backlink.prototype, {
+        onunload(old: any) {
+          return function (...args: any[]) {
+            if (this.renderComponent) {
+              this.renderComponent.unload();
+              this.dom = null;
+              this.queue = null;
+              this.renderComponent = null;
+              this._children = null;
+              this.containerEl = null;
+            }
+
+            const result = old.call(this, ...args);
+            return result;
+          };
+        },
+        onload(old: any) {
+          return function (...args: any[]) {
+            try {
+              if (!this.renderComponent) {
+                this.renderComponent = new Component();
+                this.renderComponent.load();
+              }
+              this.backlinkDom.parent = this;
+              this.unlinkedDom.parent = this;
+
+              let settings: Record<string, string> = {};
+
+              this.dom.settings = settings;
+            } catch {}
+            const result = old.call(this, ...args);
+            return result;
+          };
+        },
+      })
+    );
+    this.patchSearchResultDOM(BacklinkDOM);
+  }
+}
+
+function handleBacklinks(
+  instance: BacklinkDOMClass,
+  plugin: EmbeddedQueryControlPlugin,
+  containerEl: HTMLElement,
+  backlinksInstance: BacklinksClass
+) {
+  if (backlinksInstance) {
+    backlinksInstance.patched = true;
+    let defaultHeaderEl =
+      containerEl.querySelector(".internal-query-header") || containerEl.querySelector(".nav-header");
+    instance.setRenderMarkdown = function (value: boolean) {
+      const doms = [backlinksInstance.backlinkDom, backlinksInstance.unlinkedDom];
+      doms.forEach(dom => {
+        dom.renderMarkdown = value;
+        const _children = isFifteenPlus ? dom.vChildren?._children : dom.children;
+        _children.forEach((child: any) => {
+          child.renderContentMatches();
+        });
+        dom.infinityScroll.invalidateAll();
+        dom.childrenEl.toggleClass("cm-preview-code-block", value);
+        dom.childrenEl.toggleClass("is-rendered", value);
+      });
+      this.renderMarkdownButtonEl.toggleClass("is-active", value);
+    };
+    instance.onCopyResultsClick = (event: MouseEvent) => {
+      event.preventDefault();
+      new plugin.SearchResultsExport(instance.app, instance).open();
+    };
+    instance.renderMarkdownButtonEl = backlinksInstance.headerDom.addNavButton(
+      "reading-glasses",
+      "Render Markdown",
+      () => {
+        return instance.setRenderMarkdown(!instance.renderMarkdown);
+      }
+    );
+    backlinksInstance.headerDom.addNavButton("documents", "Copy results", instance.onCopyResultsClick.bind(instance));
+    let allSettings = {
+      title: plugin.settings.defaultHideResults,
+      collapsed: plugin.settings.defaultCollapse,
+      context: plugin.settings.defaultShowContext,
+      hideTitle: plugin.settings.defaultHideTitle,
+      hideResults: plugin.settings.defaultHideResults,
+      renderMarkdown: plugin.settings.defaultRenderMarkdown,
+      sort: plugin.settings.defaultSortOrder,
+    };
+    if (!instance.settings) instance.settings = {};
+    Object.entries(allSettings).forEach(([setting, defaultValue]) => {
+      if (!instance.settings.hasOwnProperty(setting)) {
+        instance.settings[setting] = defaultValue;
+      } else if (setting === "sort" && !sortOptions.hasOwnProperty(instance.settings.sort)) {
+        instance.settings[setting] = defaultValue;
+      }
+    });
+    backlinksInstance.setExtraContext(instance.settings.context);
+    backlinksInstance.sortOrder = instance.settings.sort;
+    backlinksInstance.setCollapseAll(instance.settings.collapsed);
+    instance.setRenderMarkdown(instance.settings.renderMarkdown);
+  } else {
   }
 }

@@ -44,6 +44,14 @@ declare module "obsidian" {
     addResult(): void;
     removeResult(): void;
   }
+  class BacklinkDOMClass {
+    startLoader(): void;
+    infinityScroll: InfinityScroll;
+    patched: boolean;
+    children: SearchResultItem[];
+    addResult(): void;
+    removeResult(): void;
+  }
   interface VaultSettings {
     foldHeading: boolean;
     foldIndent: boolean;
@@ -123,6 +131,9 @@ declare module "obsidian" {
     dom?: SearchResult;
     onunload(): void;
     onload(): void;
+  }
+  class BacklinksClass extends Component {
+    backlinkDom: {el: HTMLElement}
   }
   interface WorkspaceItem {
     tabsInnerEl: HTMLElement;
