@@ -42,11 +42,11 @@ import { translate } from "./utils";
 
 const isFifteenPlus = requireApiVersion && requireApiVersion("0.15.0");
 
-const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
+// const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
 const backlinkDoms = new WeakMap<HTMLElement, any>();
 
 export default class EmbeddedQueryControlPlugin extends Plugin {
-//  SearchHeaderDOM: typeof SearchHeaderDOM;
+  // SearchHeaderDOM: typeof SearchHeaderDOM;
   SearchResultsExport: any;
   settings: EmbeddedQueryControlSettings;
   settingsTab: SettingTab;
@@ -88,7 +88,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         });
         searchView.onCopyResultsClick(new MouseEvent(null));
         uninstall();
-//        plugin.SearchHeaderDOM = searchView.headerDom.constructor as typeof SearchHeaderDOM;
+        // plugin.SearchHeaderDOM = searchView.headerDom.constructor as typeof SearchHeaderDOM;
       });
     } else {
       this.getSearchExport();
