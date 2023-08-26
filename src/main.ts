@@ -4,7 +4,7 @@ import {
   EmbeddedSearchClass,
   Modal,
   Plugin,
-  SearchHeaderDOM,
+  // SearchHeaderDOM,
   SearchResultDOM,
   SearchResultItem,
   SearchView,
@@ -42,11 +42,11 @@ import { translate } from "./utils";
 
 const isFifteenPlus = requireApiVersion && requireApiVersion("0.15.0");
 
-const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
+// const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
 const backlinkDoms = new WeakMap<HTMLElement, any>();
 
 export default class EmbeddedQueryControlPlugin extends Plugin {
-  SearchHeaderDOM: typeof SearchHeaderDOM;
+  // SearchHeaderDOM: typeof SearchHeaderDOM;
   SearchResultsExport: any;
   settings: EmbeddedQueryControlSettings;
   settingsTab: SettingTab;
@@ -88,7 +88,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         });
         searchView.onCopyResultsClick(new MouseEvent(null));
         uninstall();
-        plugin.SearchHeaderDOM = searchView.headerDom.constructor as typeof SearchHeaderDOM;
+        // plugin.SearchHeaderDOM = searchView.headerDom.constructor as typeof SearchHeaderDOM;
       });
     } else {
       this.getSearchExport();
@@ -144,10 +144,10 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
     this.addSettingTab(this.settingsTab);
   }
 
-  getSearchHeader(): typeof SearchHeaderDOM {
-    let searchHeader: any = (this.app.workspace.getLeavesOfType("search")?.first()?.view as SearchView)?.headerDom;
-    return searchHeader?.constructor;
-  }
+  // getSearchHeader(): typeof SearchHeaderDOM {
+  //   let searchHeader: any = (this.app.workspace.getLeavesOfType("search")?.first()?.view as SearchView)?.headerDom;
+  //   return searchHeader?.constructor;
+  // }
 
   getSearchExport() {
     const plugin = this;
@@ -222,11 +222,11 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   this.dom.infinityScroll.invalidateAll();
                   this.dom.childrenEl.toggleClass("cm-preview-code-block", value);
                   this.dom.childrenEl.toggleClass("is-rendered", value);
-                  this.renderMarkdownButtonEl.toggleClass("is-active", value);
+                  // this.renderMarkdownButtonEl.toggleClass("is-active", value);
                 };
-                this.renderMarkdownButtonEl = this.headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
-                  return this.setRenderMarkdown(!this.dom.renderMarkdown);
-                });
+                // this.renderMarkdownButtonEl = this.headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
+                //   return this.setRenderMarkdown(!this.dom.renderMarkdown);
+                // });
 
                 let allSettings = {
                   renderMarkdown: plugin.settings.defaultRenderMarkdown,
@@ -286,7 +286,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   this.setExtraContext = function (value: boolean) {
                     const _children = isFifteenPlus ? this.vChildren?._children : this.children;
                     this.extraContext = value;
-                    this.extraContextButtonEl.toggleClass("is-active", value);
+                    // this.extraContextButtonEl.toggleClass("is-active", value);
                     _children.forEach((child: any) => {
                       child.setExtraContext(value);
                     });
@@ -294,12 +294,12 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   };
                   this.setTitleDisplay = function (value: boolean) {
                     this.showTitle = value;
-                    this.showTitleButtonEl.toggleClass("is-active", value);
+                    // this.showTitleButtonEl.toggleClass("is-active", value);
                     defaultHeaderEl.toggleClass("is-hidden", value);
                   };
                   this.setResultsDisplay = function (value: boolean) {
                     this.showResults = value;
-                    this.showResultsButtonEl.toggleClass("is-active", value);
+                    // this.showResultsButtonEl.toggleClass("is-active", value);
                     this.el.toggleClass("is-hidden", value);
                   };
                   this.setRenderMarkdown = function (value: boolean) {
@@ -311,11 +311,11 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     this.infinityScroll.invalidateAll();
                     this.childrenEl.toggleClass("cm-preview-code-block", value);
                     this.childrenEl.toggleClass("is-rendered", value);
-                    this.renderMarkdownButtonEl.toggleClass("is-active", value);
+                    // this.renderMarkdownButtonEl.toggleClass("is-active", value);
                   };
                   this.setCollapseAll = function (value: boolean) {
                     const _children = isFifteenPlus ? this.vChildren?._children : this.children;
-                    this.collapseAllButtonEl.toggleClass("is-active", value);
+                    // this.collapseAllButtonEl.toggleClass("is-active", value);
                     this.collapseAll = value;
                     _children.forEach((child: any) => {
                       child.setCollapse(value, false);
@@ -331,41 +331,41 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     event.preventDefault();
                     new plugin.SearchResultsExport(this.app, this).open();
                   };
-                  let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
-                  let headerDom = (this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement));
-                  defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
-                  this.collapseAllButtonEl = headerDom.addNavButton(
-                    "bullet-list",
-                    translate("plugins.search.label-collapse-results"),
-                    () => {
-                      return this.setCollapseAll(!this.collapseAll);
-                    }
-                  );
-                  this.extraContextButtonEl = headerDom.addNavButton(
-                    "expand-vertically",
-                    translate("plugins.search.label-more-context"),
-                    () => {
-                      return this.setExtraContext(!this.extraContext);
-                    }
-                  );
-                  headerDom.addSortButton(
-                    (sortType: string) => {
-                      return this.setSortOrder(sortType);
-                    },
-                    () => {
-                      return this.sortOrder;
-                    }
-                  );
-                  this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", () => {
-                    return this.setTitleDisplay(!this.showTitle);
-                  });
-                  this.showResultsButtonEl = headerDom.addNavButton("minus-with-circle", "Hide results", () => {
-                    return this.setResultsDisplay(!this.showResults);
-                  });
-                  this.renderMarkdownButtonEl = headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
-                    return this.setRenderMarkdown(!this.renderMarkdown);
-                  });
-                  headerDom.addNavButton("documents", "Copy results", this.onCopyResultsClick.bind(this));
+                  // let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
+                  // let headerDom = (this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement));
+                  // defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
+                  // this.collapseAllButtonEl = headerDom.addNavButton(
+                  //   "bullet-list",
+                  //   translate("plugins.search.label-collapse-results"),
+                  //   () => {
+                  //     return this.setCollapseAll(!this.collapseAll);
+                  //   }
+                  // );
+                  // this.extraContextButtonEl = headerDom.addNavButton(
+                  //   "expand-vertically",
+                  //   translate("plugins.search.label-more-context"),
+                  //   () => {
+                  //     return this.setExtraContext(!this.extraContext);
+                  //   }
+                  // );
+                  // headerDom.addSortButton(
+                  //   (sortType: string) => {
+                  //     return this.setSortOrder(sortType);
+                  //   },
+                  //   () => {
+                  //     return this.sortOrder;
+                  //   }
+                  // );
+                  // this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", () => {
+                  //   return this.setTitleDisplay(!this.showTitle);
+                  // });
+                  // this.showResultsButtonEl = headerDom.addNavButton("minus-with-circle", "Hide results", () => {
+                  //   return this.setResultsDisplay(!this.showResults);
+                  // });
+                  // this.renderMarkdownButtonEl = headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
+                  //   return this.setRenderMarkdown(!this.renderMarkdown);
+                  // });
+                  // headerDom.addNavButton("documents", "Copy results", this.onCopyResultsClick.bind(this));
                   let allSettings = {
                     title: plugin.settings.defaultHideResults,
                     collapsed: plugin.settings.defaultCollapse,
