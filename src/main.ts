@@ -4,7 +4,7 @@ import {
   EmbeddedSearchClass,
   Modal,
   Plugin,
-  // SearchHeaderDOM,
+  SearchHeaderDOM,
   SearchResultDOM,
   SearchResultItem,
   SearchView,
@@ -42,11 +42,11 @@ import { translate } from "./utils";
 
 const isFifteenPlus = requireApiVersion && requireApiVersion("0.15.0");
 
-// const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
+const navBars = new WeakMap<HTMLElement, SearchHeaderDOM>();
 const backlinkDoms = new WeakMap<HTMLElement, any>();
 
 export default class EmbeddedQueryControlPlugin extends Plugin {
-  // SearchHeaderDOM: typeof SearchHeaderDOM;
+  SearchHeaderDOM: typeof SearchHeaderDOM;
   SearchResultsExport: any;
   settings: EmbeddedQueryControlSettings;
   settingsTab: SettingTab;
@@ -88,7 +88,14 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         });
         searchView.onCopyResultsClick(new MouseEvent(null));
         uninstall();
-        // plugin.SearchHeaderDOM = searchView.headerDom.constructor as typeof SearchHeaderDOM;
+      });
+      let eventRef2 = this.app.workspace.on("view-registered", (type: string, viewCreator: ViewCreator) => {
+        if (type !== "backlink") return;
+        this.app.workspace.offref(eventRef2);
+        // @ts-ignore we need a leaf before any leafs exists in the workspace, so we create one from scratch
+        let leaf = new WorkspaceLeaf(plugin.app);
+        let searchView = viewCreator(leaf) as SearchView;
+        plugin.SearchHeaderDOM = searchView.backlink.headerDom.constructor as typeof SearchHeaderDOM;
       });
     } else {
       this.getSearchExport();
@@ -144,10 +151,10 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
     this.addSettingTab(this.settingsTab);
   }
 
-  // getSearchHeader(): typeof SearchHeaderDOM {
-  //   let searchHeader: any = (this.app.workspace.getLeavesOfType("search")?.first()?.view as SearchView)?.headerDom;
-  //   return searchHeader?.constructor;
-  // }
+  getSearchHeader(): typeof SearchHeaderDOM {
+    let searchHeader: any = (this.app.workspace.getLeavesOfType("backlink")?.first()?.view as SearchView)?.backlink?.headerDom;
+    return searchHeader?.constructor;
+  }
 
   getSearchExport() {
     const plugin = this;
@@ -224,9 +231,9 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   this.dom.childrenEl.toggleClass("is-rendered", value);
                   // this.renderMarkdownButtonEl.toggleClass("is-active", value);
                 };
-                // this.renderMarkdownButtonEl = this.headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
-                //   return this.setRenderMarkdown(!this.dom.renderMarkdown);
-                // });
+                this.renderMarkdownButtonEl = this.headerDom?.addNavButton("reading-glasses", "Render Markdown", () => {
+                  return this.setRenderMarkdown(!this.dom.renderMarkdown);
+                });
 
                 let allSettings = {
                   renderMarkdown: plugin.settings.defaultRenderMarkdown,
@@ -279,7 +286,8 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                 handleBacklinks(this, plugin, containerEl, backlinksInstance);
                 return;
               }
-              if (!this.patched && this.el.parentElement?.hasClass("internal-query")) {
+              let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
+              if (!this.patched && this.el.parentElement?.hasClass("internal-query") && _SearchHeaderDOM) {
                 if (this.el?.closest(".internal-query")) {
                   this.patched = true;
                   let defaultHeaderEl = this.el.parentElement.querySelector(".internal-query-header");
@@ -331,41 +339,41 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     event.preventDefault();
                     new plugin.SearchResultsExport(this.app, this).open();
                   };
-                  // let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
-                  // let headerDom = (this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement));
-                  // defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
-                  // this.collapseAllButtonEl = headerDom.addNavButton(
-                  //   "bullet-list",
-                  //   translate("plugins.search.label-collapse-results"),
-                  //   () => {
-                  //     return this.setCollapseAll(!this.collapseAll);
-                  //   }
-                  // );
-                  // this.extraContextButtonEl = headerDom.addNavButton(
-                  //   "expand-vertically",
-                  //   translate("plugins.search.label-more-context"),
-                  //   () => {
-                  //     return this.setExtraContext(!this.extraContext);
-                  //   }
-                  // );
-                  // headerDom.addSortButton(
-                  //   (sortType: string) => {
-                  //     return this.setSortOrder(sortType);
-                  //   },
-                  //   () => {
-                  //     return this.sortOrder;
-                  //   }
-                  // );
-                  // this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", () => {
-                  //   return this.setTitleDisplay(!this.showTitle);
-                  // });
-                  // this.showResultsButtonEl = headerDom.addNavButton("minus-with-circle", "Hide results", () => {
-                  //   return this.setResultsDisplay(!this.showResults);
-                  // });
-                  // this.renderMarkdownButtonEl = headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
-                  //   return this.setRenderMarkdown(!this.renderMarkdown);
-                  // });
-                  // headerDom.addNavButton("documents", "Copy results", this.onCopyResultsClick.bind(this));
+                  
+                  let headerDom = (this.headerDom = new _SearchHeaderDOM(this.app, this.el.parentElement));
+                  defaultHeaderEl.insertAdjacentElement("afterend", headerDom.navHeaderEl);
+                  this.collapseAllButtonEl = headerDom.addNavButton(
+                    "bullet-list",
+                    translate("plugins.search.label-collapse-results"),
+                    () => {
+                      return this.setCollapseAll(!this.collapseAll);
+                    }
+                  );
+                  this.extraContextButtonEl = headerDom.addNavButton(
+                    "expand-vertically",
+                    translate("plugins.search.label-more-context"),
+                    () => {
+                      return this.setExtraContext(!this.extraContext);
+                    }
+                  );
+                  headerDom.addSortButton(
+                    (sortType: string) => {
+                      return this.setSortOrder(sortType);
+                    },
+                    () => {
+                      return this.sortOrder;
+                    }
+                  );
+                  this.showTitleButtonEl = headerDom.addNavButton("strikethrough-glyph", "Hide title", () => {
+                    return this.setTitleDisplay(!this.showTitle);
+                  });
+                  this.showResultsButtonEl = headerDom.addNavButton("minus-with-circle", "Hide results", () => {
+                    return this.setResultsDisplay(!this.showResults);
+                  });
+                  this.renderMarkdownButtonEl = headerDom.addNavButton("reading-glasses", "Render Markdown", () => {
+                    return this.setRenderMarkdown(!this.renderMarkdown);
+                  });
+                  headerDom.addNavButton("documents", "Copy results", this.onCopyResultsClick.bind(this));
                   let allSettings = {
                     title: plugin.settings.defaultHideResults,
                     collapsed: plugin.settings.defaultCollapse,
