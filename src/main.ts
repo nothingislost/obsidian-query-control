@@ -229,7 +229,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   this.dom.infinityScroll.invalidateAll();
                   this.dom.childrenEl.toggleClass("cm-preview-code-block", value);
                   this.dom.childrenEl.toggleClass("is-rendered", value);
-                  // this.renderMarkdownButtonEl.toggleClass("is-active", value);
+                  this.renderMarkdownButtonEl?.toggleClass("is-active", value);
                 };
                 this.renderMarkdownButtonEl = this.headerDom?.addNavButton("reading-glasses", "Render Markdown", () => {
                   return this.setRenderMarkdown(!this.dom.renderMarkdown);
@@ -276,25 +276,30 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
     this.register(uninstall);
     this.register(
       around(SearchResult.prototype, {
+        // startLoader is called for many different use cases
+        // in this patch, we try to determine the context we were called in
+        // if we recognize a context (backlinks, embedded search, native search), we patch it
         startLoader(old: any) {
           return function (...args: any[]) {
             try {
+              // were we called from a backlinks view?
               let containerEl = this.el.closest(".backlink-pane");
               let backlinksInstance = backlinkDoms.get(containerEl);
               if (containerEl && backlinksInstance) {
-                if (backlinksInstance.patched) return;
+                if (!backlinksInstance.patched) {
                 handleBacklinks(this, plugin, containerEl, backlinksInstance);
-                return;
+                }
               }
-              let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
-              if (!this.patched && this.el.parentElement?.hasClass("internal-query") && _SearchHeaderDOM) {
+              
+              if (!this.patched && this.el.parentElement?.hasClass("internal-query") ) {
+                let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
                 if (this.el?.closest(".internal-query")) {
                   this.patched = true;
                   let defaultHeaderEl = this.el.parentElement.querySelector(".internal-query-header");
                   this.setExtraContext = function (value: boolean) {
                     const _children = isFifteenPlus ? this.vChildren?._children : this.children;
                     this.extraContext = value;
-                    // this.extraContextButtonEl.toggleClass("is-active", value);
+                    this.extraContextButtonEl.toggleClass("is-active", value);
                     _children.forEach((child: any) => {
                       child.setExtraContext(value);
                     });
@@ -302,12 +307,12 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                   };
                   this.setTitleDisplay = function (value: boolean) {
                     this.showTitle = value;
-                    // this.showTitleButtonEl.toggleClass("is-active", value);
+                    this.showTitleButtonEl.toggleClass("is-active", value);
                     defaultHeaderEl.toggleClass("is-hidden", value);
                   };
                   this.setResultsDisplay = function (value: boolean) {
                     this.showResults = value;
-                    // this.showResultsButtonEl.toggleClass("is-active", value);
+                    this.showResultsButtonEl.toggleClass("is-active", value);
                     this.el.toggleClass("is-hidden", value);
                   };
                   this.setRenderMarkdown = function (value: boolean) {
@@ -319,11 +324,11 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                     this.infinityScroll.invalidateAll();
                     this.childrenEl.toggleClass("cm-preview-code-block", value);
                     this.childrenEl.toggleClass("is-rendered", value);
-                    // this.renderMarkdownButtonEl.toggleClass("is-active", value);
+                    this.renderMarkdownButtonEl.toggleClass("is-active", value);
                   };
                   this.setCollapseAll = function (value: boolean) {
                     const _children = isFifteenPlus ? this.vChildren?._children : this.children;
-                    // this.collapseAllButtonEl.toggleClass("is-active", value);
+                    this.collapseAllButtonEl.toggleClass("is-active", value);
                     this.collapseAll = value;
                     _children.forEach((child: any) => {
                       child.setCollapse(value, false);
@@ -558,7 +563,6 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
               this._children = null;
               this.containerEl = null;
             }
-
             const result = old.call(this, ...args);
             return result;
           };
