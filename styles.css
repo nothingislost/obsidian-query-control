@@ -36,3 +36,7 @@
   margin-block-end: 0;
   margin-block-start: 0;
 }
+
+.cm-preview-code-block.is-rendered .markdown-preview-view {
+  height: inherit;
+}

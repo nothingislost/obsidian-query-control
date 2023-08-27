@@ -13,6 +13,7 @@ import {
   requireApiVersion,
   BacklinksClass,
   BacklinkDOMClass,
+  Setting
 } from "obsidian";
 import { SearchMarkdownRenderer } from "./search-renderer";
 import { DEFAULT_SETTINGS, EmbeddedQueryControlSettings, SettingTab, sortOptions } from "./settings";
@@ -282,7 +283,7 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
         startLoader(old: any) {
           return function (...args: any[]) {
             try {
-              // were we called from a backlinks view?
+              // are we in a backlinks view?
               let containerEl = this.el.closest(".backlink-pane");
               let backlinksInstance = backlinkDoms.get(containerEl);
               if (containerEl && backlinksInstance) {
@@ -291,6 +292,25 @@ export default class EmbeddedQueryControlPlugin extends Plugin {
                 }
               }
               
+              // are we in a native search view?
+              if (!this.parent?.searchParamsContainerEl?.patched && this.el?.parentElement?.getAttribute("data-type") === "search" ) {
+                this.parent.searchParamsContainerEl.patched = true;
+                new Setting(this.parent.searchParamsContainerEl).setName("Render Markdown").setClass("mod-toggle").addToggle(toggle => {
+                  toggle.setValue(plugin.settings.defaultRenderMarkdown);
+                  toggle.onChange(value => {
+                    this.renderMarkdown = value;
+                    const _children = isFifteenPlus ? this.vChildren?._children : this.children;
+                    _children.forEach((child: any) => {
+                      child.renderContentMatches();
+                    });
+                    this.infinityScroll.invalidateAll();
+                    this.childrenEl.toggleClass("cm-preview-code-block", value);
+                    this.childrenEl.toggleClass("is-rendered", value);
+                  });
+                })
+              }
+              
+              // are we in a embedded search view?
               if (!this.patched && this.el.parentElement?.hasClass("internal-query") ) {
                 let _SearchHeaderDOM = plugin.SearchHeaderDOM ? plugin.SearchHeaderDOM : plugin.getSearchHeader();
                 if (this.el?.closest(".internal-query")) {
